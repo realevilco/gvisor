@@ -24,6 +24,10 @@ const (
 	ARPSize = 2 + 2 + 1 + 1 + 2 + 2*6 + 2*4
 )
 
+// BroadcastMAC is a special link-layer address that addresses every computer
+// on a given LAN segment.
+var BroadcastMAC = tcpip.LinkAddress([]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})
+
 // ARPOp is an ARP opcode.
 type ARPOp uint16
 
