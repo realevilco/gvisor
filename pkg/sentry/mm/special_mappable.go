@@ -149,7 +149,18 @@ func NewSharedAnonMappable(length uint64, mfp pgalloc.MemoryFileProvider) (*Spec
 	if !ok {
 		return nil, syserror.EINVAL
 	}
-	fr, err := mfp.MemoryFile().Allocate(uint64(alignedLen), usage.Anonymous)
+	var (
+		fr  platform.FileRange
+		err error
+	)
+	if mfp.RequireRezeroing() {
+		// TODO(dionnaglaze): Writing all zeros upfront is likely a terrible plan.
+		// A better solution would require a more full implementation of shared
+		// memory objects (/dev/shm).
+		fr, err = mfp.MemoryFile().AllocateAndFill(uint64(alignedLen), usage.Anonymous, zeroReader{})
+	} else {
+		fr, err = mfp.MemoryFile().Allocate(uint64(alignedLen), usage.Anonymous)
+	}
 	if err != nil {
 		return nil, err
 	}

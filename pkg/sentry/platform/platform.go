@@ -98,6 +98,10 @@ type Platform interface {
 
 	// SyscallFilters returns syscalls made exclusively by this platform.
 	SyscallFilters() seccomp.SyscallRules
+
+	// RequireRezeroing returns true if the platform features require anonymous
+	// guest memory to be re-zeroed when mmaped.
+	RequireRezeroing() bool
 }
 
 // NoCPUPreemptionDetection implements Platform.DetectsCPUPreemption and

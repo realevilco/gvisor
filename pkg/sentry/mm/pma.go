@@ -172,6 +172,12 @@ func (mm *MemoryManager) getVecPMAsLocked(ctx context.Context, ars usermem.AddrR
 	return ars, nil
 }
 
+type zeroReader struct{}
+
+func (zeroReader) ReadToBlocks(seq safemem.BlockSeq) (uint64, error) {
+	return safemem.ZeroSeq(seq)
+}
+
 // getPMAsInternalLocked is equivalent to getPMAsLocked, with the following
 // exceptions:
 //
@@ -222,9 +228,17 @@ func (mm *MemoryManager) getPMAsInternalLocked(ctx context.Context, vseg vmaIter
 					}
 				}
 				if vma.mappable == nil {
+					var (
+						fr  platform.FileRange
+						err error
+					)
 					// Private anonymous mappings get pmas by allocating.
 					allocAR := optAR.Intersect(maskAR)
-					fr, err := mf.Allocate(uint64(allocAR.Length()), usage.Anonymous)
+					if mm.mfp.RequireRezeroing() {
+						fr, err = mf.AllocateAndFill(uint64(allocAR.Length()), usage.Anonymous, zeroReader{})
+					} else {
+						fr, err = mf.Allocate(uint64(allocAR.Length()), usage.Anonymous)
+					}
 					if err != nil {
 						return pstart, pgap, err
 					}

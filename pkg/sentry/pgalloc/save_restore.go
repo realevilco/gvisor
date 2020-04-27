@@ -208,4 +208,8 @@ func (f *MemoryFile) LoadFrom(ctx context.Context, r io.Reader) error {
 type MemoryFileProvider interface {
 	// MemoryFile returns the Kernel MemoryFile.
 	MemoryFile() *MemoryFile
+
+	// RequireRezeroing returns whether the guest must write zeros to the
+	// MemoryFile's uncommitted regions.
+	RequireRezeroing() bool
 }
