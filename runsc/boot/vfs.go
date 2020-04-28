@@ -41,20 +41,16 @@ import (
 )
 
 func registerFilesystems(ctx context.Context, vfsObj *vfs.VirtualFilesystem, creds *auth.Credentials) error {
-
 	vfsObj.MustRegisterFilesystemType(rootFsName, &goferimpl.FilesystemType{}, &vfs.RegisterFilesystemTypeOptions{
 		AllowUserList: true,
 	})
-
 	vfsObj.MustRegisterFilesystemType(bind, &goferimpl.FilesystemType{}, &vfs.RegisterFilesystemTypeOptions{
 		AllowUserList: true,
 	})
-
 	vfsObj.MustRegisterFilesystemType(devpts, &devtmpfsimpl.FilesystemType{}, &vfs.RegisterFilesystemTypeOptions{
 		AllowUserMount: true,
 		AllowUserList:  true,
 	})
-
 	vfsObj.MustRegisterFilesystemType(devtmpfs, &devtmpfsimpl.FilesystemType{}, &vfs.RegisterFilesystemTypeOptions{
 		AllowUserMount: true,
 		AllowUserList:  true,
@@ -209,7 +205,6 @@ func (c *containerMounter) setupVFS2(ctx context.Context, conf *Config, procArgs
 }
 
 func (c *containerMounter) createMountNamespaceVFS2(ctx context.Context, conf *Config, creds *auth.Credentials) (*vfs.MountNamespace, error) {
-
 	fd := c.fds.remove()
 	opts := strings.Join(p9MountOptionsVFS2(fd, conf.FileAccess), ",")
 
@@ -222,7 +217,6 @@ func (c *containerMounter) createMountNamespaceVFS2(ctx context.Context, conf *C
 }
 
 func (c *containerMounter) mountSubmountsVFS2(ctx context.Context, conf *Config, mns *vfs.MountNamespace, creds *auth.Credentials) error {
-
 	c.prepareMountsVFS2()
 
 	for _, submount := range c.mounts {
@@ -256,7 +250,6 @@ func (c *containerMounter) mountSubmountVFS2(ctx context.Context, conf *Config, 
 	if err != nil {
 		return fmt.Errorf("mountOptions failed: %w", err)
 	}
-
 	if fsName == "" {
 		// Filesystem is not supported (e.g. cgroup), just skip it.
 		return nil

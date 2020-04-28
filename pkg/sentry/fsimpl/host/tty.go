@@ -26,15 +26,15 @@ import (
 	"gvisor.dev/gvisor/pkg/usermem"
 )
 
-// ttyFD implements vfs.FileDescriptionImpl for a host file descriptor
+// TtyFD implements vfs.FileDescriptionImpl for a host file descriptor
 // that wraps a TTY FD.
-type ttyFD struct {
+type TtyFD struct {
 	fileDescription
 
 	// mu protects the fields below.
 	mu sync.Mutex `state:"nosave"`
 
-	// session is the session attached to this ttyFD.
+	// session is the session attached to this TtyFD.
 	session *kernel.Session
 
 	// fgProcessGroup is the foreground process group that is currently
@@ -48,7 +48,7 @@ type ttyFD struct {
 // InitForegroundProcessGroup sets the foreground process group and session for
 // the TTY. This should only be called once, after the foreground process group
 // has been created, but before it has started running.
-func (t *ttyFD) InitForegroundProcessGroup(pg *kernel.ProcessGroup) {
+func (t *TtyFD) InitForegroundProcessGroup(pg *kernel.ProcessGroup) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.fgProcessGroup != nil {
@@ -59,14 +59,14 @@ func (t *ttyFD) InitForegroundProcessGroup(pg *kernel.ProcessGroup) {
 }
 
 // ForegroundProcessGroup returns the foreground process for the TTY.
-func (t *ttyFD) ForegroundProcessGroup() *kernel.ProcessGroup {
+func (t *TtyFD) ForegroundProcessGroup() *kernel.ProcessGroup {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.fgProcessGroup
 }
 
 // Release implements fs.FileOperations.Release.
-func (t *ttyFD) Release() {
+func (t *TtyFD) Release() {
 	t.mu.Lock()
 	t.fgProcessGroup = nil
 	t.mu.Unlock()
@@ -78,7 +78,7 @@ func (t *ttyFD) Release() {
 //
 // Reading from a TTY is only allowed for foreground process groups. Background
 // process groups will either get EIO or a SIGTTIN.
-func (t *ttyFD) PRead(ctx context.Context, dst usermem.IOSequence, offset int64, opts vfs.ReadOptions) (int64, error) {
+func (t *TtyFD) PRead(ctx context.Context, dst usermem.IOSequence, offset int64, opts vfs.ReadOptions) (int64, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -96,7 +96,7 @@ func (t *ttyFD) PRead(ctx context.Context, dst usermem.IOSequence, offset int64,
 //
 // Reading from a TTY is only allowed for foreground process groups. Background
 // process groups will either get EIO or a SIGTTIN.
-func (t *ttyFD) Read(ctx context.Context, dst usermem.IOSequence, opts vfs.ReadOptions) (int64, error) {
+func (t *TtyFD) Read(ctx context.Context, dst usermem.IOSequence, opts vfs.ReadOptions) (int64, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -111,7 +111,7 @@ func (t *ttyFD) Read(ctx context.Context, dst usermem.IOSequence, opts vfs.ReadO
 }
 
 // PWrite implements vfs.FileDescriptionImpl.
-func (t *ttyFD) PWrite(ctx context.Context, src usermem.IOSequence, offset int64, opts vfs.WriteOptions) (int64, error) {
+func (t *TtyFD) PWrite(ctx context.Context, src usermem.IOSequence, offset int64, opts vfs.WriteOptions) (int64, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -126,7 +126,7 @@ func (t *ttyFD) PWrite(ctx context.Context, src usermem.IOSequence, offset int64
 }
 
 // Write implements vfs.FileDescriptionImpl.
-func (t *ttyFD) Write(ctx context.Context, src usermem.IOSequence, opts vfs.WriteOptions) (int64, error) {
+func (t *TtyFD) Write(ctx context.Context, src usermem.IOSequence, opts vfs.WriteOptions) (int64, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -141,7 +141,7 @@ func (t *ttyFD) Write(ctx context.Context, src usermem.IOSequence, opts vfs.Writ
 }
 
 // Ioctl implements vfs.FileDescriptionImpl.
-func (t *ttyFD) Ioctl(ctx context.Context, io usermem.IO, args arch.SyscallArguments) (uintptr, error) {
+func (t *TtyFD) Ioctl(ctx context.Context, io usermem.IO, args arch.SyscallArguments) (uintptr, error) {
 	// Ignore arg[0]. This is the real FD:
 	fd := t.inode.hostFD
 	ioctl := args[1].Uint64()
@@ -321,7 +321,7 @@ func (t *ttyFD) Ioctl(ctx context.Context, io usermem.IO, args arch.SyscallArgum
 // is a bit convoluted, but documented inline.
 //
 // Preconditions: t.mu must be held.
-func (t *ttyFD) checkChange(ctx context.Context, sig linux.Signal) error {
+func (t *TtyFD) checkChange(ctx context.Context, sig linux.Signal) error {
 	task := kernel.TaskFromContext(ctx)
 	if task == nil {
 		// No task? Linux does not have an analog for this case, but
