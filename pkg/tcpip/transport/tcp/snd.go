@@ -216,6 +216,11 @@ type fastRecovery struct {
 	// available for transmission.
 	// See: RFC 6675 Section 2 for details.
 	rescueRxt seqnum.Value
+
+	// nextSegHint is the pointer to the segment after nextSeg1 returned by
+	// the previous call to sender.NextSeg. It is potentially non-nil only
+	// during a SACK recovery episode.
+	nextSegHint *segment `state:"nosave"`
 }
 
 func newSender(ep *endpoint, iss, irs seqnum.Value, sndWnd seqnum.Size, mss uint16, sndWndScale int) *sender {
@@ -571,7 +576,11 @@ func (s *sender) NextSeg() (nextSeg1, nextSeg3, nextSeg4 *segment) {
 	var s4 *segment
 	smss := s.ep.scoreboard.SMSS()
 	// Step 1.
-	for seg := s.writeList.Front(); seg != nil; seg = seg.Next() {
+	seg := s.writeList.Front()
+	if s.fr.nextSegHint != nil {
+		seg = s.fr.nextSegHint
+	}
+	for ; seg != nil; seg = seg.Next() {
 		if !s.isAssignedSequenceNumber(seg) {
 			break
 		}
@@ -595,6 +604,7 @@ func (s *sender) NextSeg() (nextSeg1, nextSeg3, nextSeg4 *segment) {
 				// NextSeg():
 				//     (1.c) IsLost(S2) returns true.
 				if s.ep.scoreboard.IsLost(segSeq) {
+					s.fr.nextSegHint = seg.Next()
 					return seg, s3, s4
 				}
 				// NextSeg():
@@ -909,6 +919,7 @@ func (s *sender) leaveFastRecovery() {
 	s.fr.active = false
 	s.fr.maxCwnd = 0
 	s.dupAckCount = 0
+	s.fr.nextSegHint = nil
 
 	// Deflate cwnd. It had been artificially inflated when new dups arrived.
 	s.sndCwnd = s.sndSsthresh
@@ -1170,6 +1181,13 @@ func (s *sender) handleRcvdSegment(seg *segment) {
 			if s.writeNext == seg {
 				s.writeNext = seg.Next()
 			}
+
+			// Ensure we update the cached nextSeg value if it
+			// points to the segment that was just ACKed.
+			if s.fr.active && s.fr.nextSegHint == seg {
+				s.fr.nextSegHint = seg.Next()
+			}
+
 			s.writeList.Remove(seg)
 
 			// if SACK is enabled then Only reduce outstanding if
