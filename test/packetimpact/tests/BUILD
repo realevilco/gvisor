@@ -1,4 +1,4 @@
-load("defs.bzl", "packetimpact_go_test")
+load("//test/packetimpact/runner:defs.bzl", "packetimpact_go_test")
 
 package(
     default_visibility = ["//test/packetimpact:__subpackages__"],
@@ -107,9 +107,4 @@ packetimpact_go_test(
         "//test/packetimpact/testbench",
         "@org_golang_x_sys//unix:go_default_library",
     ],
-)
-
-sh_binary(
-    name = "test_runner",
-    srcs = ["test_runner.sh"],
 )

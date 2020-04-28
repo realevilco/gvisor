@@ -38,7 +38,7 @@ _packetimpact_test = rule(
         "_test_runner": attr.label(
             executable = True,
             cfg = "target",
-            default = ":test_runner",
+            default = ":packetimpact_test",
         ),
         "_posix_server_binary": attr.label(
             cfg = "target",
