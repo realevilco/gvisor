@@ -105,6 +105,7 @@ type endpoint struct {
 	reusePort      bool
 	bindToDevice   tcpip.NICID
 	broadcast      bool
+	err            *tcpip.Error
 
 	// Values used to reserve a port or register a transport endpoint.
 	// (which ever happens first).
@@ -240,9 +241,39 @@ func (e *endpoint) IPTables() (stack.IPTables, error) {
 	return e.stack.IPTables(), nil
 }
 
+// retrieveError retrieves the error stored on this endpoint if there is one,
+// and clears it.
+func (e *endpoint) retrieveError() *tcpip.Error {
+	e.mu.RLock()
+
+	if e.err == nil {
+		e.mu.RUnlock()
+		return nil
+	}
+
+	e.mu.RUnlock()
+	e.mu.Lock()
+	err := e.err
+	e.err = nil
+	e.mu.Unlock()
+	return err
+}
+
+// storeError stores an error on this endpoint to be returned through the
+// SO_ERROR socket option, or on the next read or write operation.
+func (e *endpoint) storeError(err *tcpip.Error) {
+	e.mu.Lock()
+	e.err = err
+	e.mu.Unlock()
+}
+
 // Read reads data from the endpoint. This method does not block if
 // there is no data pending.
 func (e *endpoint) Read(addr *tcpip.FullAddress) (buffer.View, tcpip.ControlMessages, *tcpip.Error) {
+	if err := e.retrieveError(); err != nil {
+		return buffer.View{}, tcpip.ControlMessages{}, err
+	}
+
 	e.rcvMu.Lock()
 
 	if e.rcvList.Empty() {
@@ -382,6 +413,10 @@ func (e *endpoint) Write(p tcpip.Payloader, opts tcpip.WriteOptions) (int64, <-c
 }
 
 func (e *endpoint) write(p tcpip.Payloader, opts tcpip.WriteOptions) (int64, <-chan struct{}, *tcpip.Error) {
+	if err := e.retrieveError(); err != nil {
+		return 0, nil, err
+	}
+
 	// MSG_MORE is unimplemented. (This also means that MSG_EOR is a no-op.)
 	if opts.More {
 		return 0, nil, tcpip.ErrInvalidOptionValue
@@ -853,6 +888,7 @@ func (e *endpoint) GetSockOptInt(opt tcpip.SockOptInt) (int, *tcpip.Error) {
 func (e *endpoint) GetSockOpt(opt interface{}) *tcpip.Error {
 	switch o := opt.(type) {
 	case tcpip.ErrorOption:
+		return e.retrieveError()
 	case *tcpip.MulticastInterfaceOption:
 		e.mu.Lock()
 		*o = tcpip.MulticastInterfaceOption{
@@ -1316,6 +1352,17 @@ func (e *endpoint) HandlePacket(r *stack.Route, id stack.TransportEndpointID, pk
 
 // HandleControlPacket implements stack.TransportEndpoint.HandleControlPacket.
 func (e *endpoint) HandleControlPacket(id stack.TransportEndpointID, typ stack.ControlType, extra uint32, pkt stack.PacketBuffer) {
+	if typ == stack.ControlPortUnreachable {
+		e.mu.RLock()
+
+		if e.state == StateConnected {
+			e.mu.RUnlock()
+			e.storeError(tcpip.ErrConnectionRefused)
+			return
+		}
+
+		e.mu.RUnlock()
+	}
 }
 
 // State implements tcpip.Endpoint.State.

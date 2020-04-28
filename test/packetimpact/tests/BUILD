@@ -29,6 +29,17 @@ packetimpact_go_test(
 )
 
 packetimpact_go_test(
+    name = "udp_icmp_error_propagation",
+    srcs = ["udp_icmp_error_propagation_test.go"],
+    deps = [
+        "//pkg/tcpip",
+        "//pkg/tcpip/header",
+        "//test/packetimpact/testbench",
+        "@org_golang_x_sys//unix:go_default_library",
+    ],
+)
+
+packetimpact_go_test(
     name = "tcp_window_shrink",
     srcs = ["tcp_window_shrink_test.go"],
     # TODO(b/153202472): Fix netstack then remove the line below.
